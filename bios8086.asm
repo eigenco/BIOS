@@ -362,19 +362,40 @@ int10:
 putchar:
 	push	es
 	push	di
+	push	ds
+	push	si
+	push	cx
 	push	bx
 	push	ax
 
 	cmp	al, '~'
 	ja	int10_pass
-	cmp	al, ' '
-	jb	int10_pass
 
 	; load old cursor location from BIOS Data Area
 	mov	bx, 0x40
 	mov	es, bx
 	mov	bx, 0x50
 	mov	di, [es:bx]
+
+	cmp	al, 13
+	je	putchar13
+
+	; scroll if needed
+	cmp	di, 2*80*25
+	jb	continue
+	sub	di, 160
+	mov	bx, 0xb800
+	mov	es, bx
+	mov	ds, bx
+	xor	di, di
+	mov	si, 160
+	mov	cx, 80*25
+	rep	movsw
+	sub	di, 160
+continue:
+
+	cmp	al, 10
+	je	putchar10
 
 	; write characters to VGA adapter
 	mov	bx, 0xb800
@@ -391,9 +412,51 @@ putchar:
 int10_pass:
 	pop	ax
 	pop	bx
+	pop	cx
+	pop	si
+	pop	ds
 	pop	di
 	pop	es
 	iret
+
+putchar10:
+	cmp	di, 2*25*80
+	jb	putchar10a
+	sub	di, 160
+	mov	bx, 0xb800
+	mov	es, bx
+	mov	ds, bx
+	xor	di, di
+	mov	si, 160
+	mov	cx, 80*25
+	rep	movsw
+putchar10a:
+	add	di, 160
+
+	; store new cursor location to BIOS Data Area
+	mov	bx, 0x40
+	mov	es, bx
+	mov	bx, 0x50
+	mov	[es:bx], di
+
+	jmp	int10_pass
+
+putchar13:
+	; move cursor location to beginning of line
+	mov	ax, di
+	mov	bl, 160
+	div	bl
+	mov	al, ah
+	xor	ah, ah
+	sub	di, ax
+
+	; store new cursor location to BIOS Data Area
+	mov	bx, 0x40
+	mov	es, bx
+	mov	bx, 0x50
+	mov	[es:bx], di
+
+	jmp	int10_pass
 
 ;;;; BIOS MEMORY INTERRUPT SERVICE ;;;;
 
