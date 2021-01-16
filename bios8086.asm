@@ -1,6 +1,6 @@
 ; 64k system BIOS at F000:0000 - F000:FFFF
 ;
-; Boots to prompth with PCemV17 (ami386), 32 MB disk with MS-DOS 6.22 installed
+; Boots to prompth with PCemV17 (ami386), disk with MS-DOS 6.22 installed
 ;
 ; BIOS interrupts are only partially implemented
 ;
@@ -15,12 +15,6 @@
 ; g =100 106
 
 	cpu	8086
-
-%macro outw 2
-	mov	dx, %1
-	mov	ax, %2
-	out	dx, ax
-%endmacro
 
 start:
 
@@ -95,20 +89,31 @@ pal:
 
 ;;;; load font ;;;;
 
-	outw	0x3ce, 0x0005
-	outw	0x3ce, 0x0406
-	outw	0x3c4, 0x0402
-	outw	0x3c4, 0x0604
+	mov	dx, 0x3ce
+	mov	ax, 0x0005
+	out	dx, ax
+	mov	ax, 0x0406
+	out	dx, ax
+	mov	dx, 0x3c4
+	mov	ax, 0x0402
+	out	dx, ax
+	mov	ax, 0x0604
+	out	dx, ax
 	mov	si, VGAFONT
 	mov	bx, 0xa000
 	mov	es, bx
 	xor	di, di
 	mov	cx, 80*25*2
 	rep	movsw
-	outw	0x3c4, 0x0302
-	outw	0x3c4, 0x0204
-	outw	0x3ce, 0x1005
-	outw	0x3ce, 0x0e06
+	mov	ax, 0x0302
+	out	dx, ax
+	mov	ax, 0x0204
+	out	dx, ax
+	mov	dx, 0x3ce
+	mov	ax, 0x1005
+	out	dx, ax
+	mov	ax, 0x0e06
+	out	dx, ax
 
 ;;;; setup empty interrupt handlers ;;;;
 
@@ -226,7 +231,7 @@ int9:
 	inc	word [es:0x1a]
 	mov	di, [es:0x1a]
 	in	al, 0x60
-	mov	byte [es:di], al
+	mov	[es:di], al
 
 	mov	al, 0x20
 	out	0x20, al
@@ -251,7 +256,7 @@ int16:
 	cli
 	mov	di, 0x40
 	mov	es, di
-	cmp	word [es:0x1a], 0x1e ; head and tail equal -> wait
+	cmp	word [es:0x1a], 0x1e
 	jne	kb__0
 	sti
 	jmp	kb_0
@@ -262,6 +267,7 @@ int16:
   kb_end:
 	pop	di
 	pop	es
+	sti
         iret
 
 ascii:
@@ -323,6 +329,8 @@ int12:
 int13:
 	cmp	ah, 2
 	je	read_disk
+	cmp	ah, 3
+	je	write_disk
 	cmp	ah, 8
 	je	disk_type
 	iret
@@ -361,7 +369,6 @@ processing:
 	jz      processing
 	mov     cx, 256
 	mov     dx, 0x1f0
-;	rep     insw                   ; read cx words from port dx to es:di
 e:
 	in	ax, dx
 	stosw
@@ -372,6 +379,9 @@ e:
 	pop	di
 	pop	dx
 	pop	cx
+	iret
+
+write_disk:
 	iret
 
 disk_type:
