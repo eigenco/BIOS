@@ -180,16 +180,6 @@ empty:
 
 	sti
 
-;;;; clear screen ;;;;
-
-	mov	di, 0xb800
-	mov	es, di
-	xor	di, di
-	mov	ah, 7
-	mov	al, 0
-	mov	cx, 80*25
-	rep	stosw
-
 ;;;; setup BIOS Data Area (BDA) and enable interrupts ;;;;
 
 	mov	di, 0x40
@@ -226,13 +216,16 @@ int9:
 	push	es
 	push	di
 
+	in	al, 0x60
+	cmp	al, 0x7f
+	ja	int9_pass
+
 	mov	di, 0x40
 	mov	es, di
 	inc	word [es:0x1a]
 	mov	di, [es:0x1a]
-	in	al, 0x60
 	mov	[es:di], al
-
+int9_pass:
 	mov	al, 0x20
 	out	0x20, al
 
@@ -250,7 +243,20 @@ int16:
 
         cmp     ah, 0
 	je	kb_0
+	cmp	ah, 1
+	je	kb_1
 
+	xor	ax, ax
+	jmp	kb_end
+  kb_1:
+	cli
+	mov	di, 0x40
+	mov	es, di
+	cmp	word [es:0x1a], 0x1e
+	jne	kb_end
+	sti
+
+	xor	ax, ax
 	jmp	kb_end
   kb_0:
 	cli
@@ -259,6 +265,7 @@ int16:
 	cmp	word [es:0x1a], 0x1e
 	jne	kb__0
 	sti
+
 	jmp	kb_0
   kb__0:
 	mov	di, [es:0x1a]
@@ -268,7 +275,7 @@ int16:
 	pop	di
 	pop	es
 	sti
-        iret
+	retf	2
 
 ascii:
 	db       0,   1
