@@ -240,6 +240,8 @@ int9_pass:
 int16:
 	push	es
 	push	di
+	push	ds
+	push	bx
 
         cmp     ah, 0
 	je	kb_0
@@ -271,23 +273,85 @@ int16:
 	mov	di, [es:0x1a]
 	mov	al, [es:di]
 	dec	word [es:0x1a]
+
+	mov	ah, al
+	mov	bx, cs
+	mov	ds, bx
+	mov	bx, ascii
+	xlat	; al = [ds:bx+al]
   kb_end:
+	pop	bx
+	pop	ds
 	pop	di
 	pop	es
 	sti
 	retf	2
 
 ascii:
-	db       0,   1
-	db      '1', '2', '3', '4', '5', '6', '7', '8', '9', '0'
-	db       12,  13,  14,  15
-	db      'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'
-	db       26,  27,  13,  29
-	db      'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'
-	db       39,  40,  41,  42,  43
-	db      'z', 'x', 'c', 'v', 'b', 'n', 'm'
-	db       51,  52,  53,  54,  55,  56
-	db      ' '
+	db	 0
+	db	 1
+	db	'1'
+	db	'2'
+	db	'3'
+	db	'4'
+	db	'5'
+	db	'6'
+	db	'7'
+	db	'8'
+	db	'9'
+	db	'0'
+	db	12
+	db	13
+	db	 8  ; backspace
+	db	15
+	db	'q'
+	db	'w'
+	db	'e'
+	db	'r'
+	db	't'
+	db	'y'
+	db	'u'
+	db	'i'
+	db	'o'
+	db	'p'
+	db	26
+	db	27
+	db	13  ; enter
+	db	29
+	db	'a'
+	db	's'
+	db	'd'
+	db	'f'
+	db	'g'
+	db	'h'
+	db	'j'
+	db	'k'
+	db	'l'
+	db	39
+	db	40
+	db	41
+	db	42
+	db	43
+	db	'z'
+	db	'x'
+	db	'c'
+	db	'v'
+	db	'b'
+	db	'n'
+	db	'm'
+	db	','
+	db	'.'
+	db	53
+	db	54
+	db	55
+	db	56
+	db	' ' ; space
+	db	58
+	db	59
+	db	60
+	db	61
+	db	62
+	db	63
 
 ;;;; BIOS VIDEO INTERRUPT SERVICE ;;;;
 
@@ -300,6 +364,11 @@ putchar:
 	push	di
 	push	bx
 	push	ax
+
+	cmp	al, '~'
+	ja	int10_pass
+	cmp	al, ' '
+	jb	int10_pass
 
 	; load old cursor location from BIOS Data Area
 	mov	bx, 0x40
@@ -319,6 +388,7 @@ putchar:
 	mov	bx, 0x50
 	mov	[es:bx], di
 
+int10_pass:
 	pop	ax
 	pop	bx
 	pop	di
