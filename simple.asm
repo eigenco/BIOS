@@ -116,11 +116,15 @@ read_disk:
 	mov     dx, 0x1f3
 	out     dx, al
 
-	mov     al, ch                 ; cylinder
+	mov     al, ch                 ; low(cylinder)
 	mov     dx, 0x1f4
 	out     dx, al
 
-	mov     al, 0x20               ; read (0x30 for write)
+;	xor	al, al                 ; high(cylinder)
+;	mov	dx, 0x1f5
+;	out	dx, al
+
+	mov     al, 0x20               ; read
 	mov     dx, 0x1f7
 	out     dx, al
 .0:
@@ -144,6 +148,56 @@ read_disk:
 	iret
 
 write_disk:
+	push	es
+	pop	ds
+	push	cx
+	push	dx
+	push	si
+
+	mov	si, bx                 ; target = es:bx
+	mov	bl, al                 ; sectors to write
+
+	mov     al, dh                 ; head
+	mov     dx, 0x1f6
+	out     dx, al
+
+	mov	al, bl                 ; sectors to write
+	mov     dx, 0x1f2
+	out     dx, al
+
+	mov     al, cl                 ; sector
+	mov     dx, 0x1f3
+	out     dx, al
+
+	mov     al, ch                 ; low(cylinder)
+	mov     dx, 0x1f4
+	out     dx, al
+
+;	xor	al, al                 ; high(cylinder)
+;	mov	dx, 0x1f5
+;	out	dx, al
+
+	mov     al, 0x30               ; write
+	mov     dx, 0x1f7
+	out     dx, al
+.0:
+	mov     dx, 0x1f7
+.1:
+	in      al, dx
+	test    al, 8
+	jz      .1
+	mov     cx, 256
+	mov     dx, 0x1f0
+.2:
+	lodsw
+	out	dx, ax
+	loop	.2
+	dec     bl
+	jnz	.0                     ; until sectors are written
+
+	pop	si
+	pop	dx
+	pop	cx
 	iret
 
 disk_type:
