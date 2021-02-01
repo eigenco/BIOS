@@ -50,10 +50,8 @@ start:
 	mov     al, 00001000b
 	out     0x21, al
 
-	mov     al, 0
+	xor     al, al
 	out     0x21, al
-
-	mov     al, 0
 	out     0x21, al
 
 	sti
