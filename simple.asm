@@ -1,8 +1,8 @@
 ; System BIOS at F000:0000 - F000:FFFF
 ;
 ; Boots with PCemV17 (ami386 and ET4000), disk with MS-DOS 6.22 installed
-;
-; BIOS interrupts are very partially implemented
+; VGA font is not loaded upon boot so you won't see anything until supaplex boots (automatic)
+; BIOS interrupts are only minimally implemented
 ;
 ; Find the correct HDD parameters (cx and dx):
 ;
@@ -13,6 +13,15 @@
 ; int 13
 ;
 ; g =100 106
+;
+; What needs to happen in order to boot dos
+; - interrupt 12 needs to report conventional memory
+; - interrupt 13 needs to support disk read, write and parameter reporting
+;
+; What needs to happen in order to play supaplex (custom version)
+; - Keyboard needs to be initialized for suitable XT scancodes
+; - Programmable Interrupt Controller needs to be initialized so keyboard and PIT interrupts works
+; - Acknowledging keyboard interrupt needs to exist
 
 	cpu     8086
 
@@ -30,7 +39,6 @@ start:
 	loop	.0
 
 	mov     word [es:0x09*4], int9
-	mov     word [es:0x12*4], int10
 	mov     word [es:0x12*4], int12
 	mov     word [es:0x13*4], int13
 
@@ -118,7 +126,6 @@ int9:
 	in      al, 0x60
 	mov     al, 0x20
 	out     0x20, al
-int10:
 	iret
 
 ;;;; BIOS MEMORY INTERRUPT SERVICE ;;;;
@@ -177,7 +184,7 @@ read_disk:
 	stosw
 	loop	.2
 	dec     bl
-	jnz	.0                     ; until sectors are read
+	jnz     .0                     ; until sectors are read
 
 	pop     di
 	pop     dx
@@ -226,7 +233,7 @@ write_disk:
 	out     dx, ax
 	loop	.2
 	dec     bl
-	jnz	.0                     ; until sectors are written
+	jnz     .0                     ; until sectors are written
 
 	pop     si
 	pop     dx
@@ -240,14 +247,14 @@ blank:
 	iret
 
 MISCregs:
-	db 0x23	; db 0x63
+	db 0x23
 
 SEQregs:
-	dw 0x0300 ; dw 0x0000
-	dw 0x0B01 ; dw 0x0901
-	dw 0x0F02 ; dw 0x0F02
-	dw 0x0003 ; dw 0x0003
-	dw 0x0604 ; dw 0x0204
+	dw 0x0300
+	dw 0x0B01
+	dw 0x0F02
+	dw 0x0003
+	dw 0x0604
 
 CRTCregs:
 	dw 0x0011
