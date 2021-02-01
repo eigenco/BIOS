@@ -60,42 +60,42 @@ start:
 
 ;;;; setup VGA registers ;;;;
 
-	mov	bx, cs
-	mov	ds, bx
+	mov     bx, cs
+	mov     ds, bx
 
-	cpu 186
+	cpu     186
 
-	mov	si, MISCregs
-	mov	dx, 0x3c2
+	mov     si, MISCregs
+	mov     dx, 0x3c2
 	outsb
 
-	mov	si, SEQregs
-	mov	dx, 0x3c4
-	mov	cx, 5
-	rep	outsw
+	mov     si, SEQregs
+	mov     dx, 0x3c4
+	mov     cx, 5
+	rep     outsw
 
-	mov	si, CRTCregs
-	mov	dx, 0x3d4
-	mov	cx, 26
-	rep	outsw
+	mov     si, CRTCregs
+	mov     dx, 0x3d4
+	mov     cx, 26
+	rep     outsw
 
-	mov	si, GCregs
-	mov	dx, 0x3ce
-	mov	cx, 9
-	rep	outsw
+	mov     si, GCregs
+	mov     dx, 0x3ce
+	mov     cx, 9
+	rep     outsw
 
-	mov	si, ACregs
-	mov	dx, 0x3c0
-	mov	cx, 42
-	rep	outsb
+	mov     si, ACregs
+	mov     dx, 0x3c0
+	mov     cx, 42
+	rep     outsb
 
-	mov	dx, 0x3da
-	in	al, dx
-	mov	dx, 0x3c0
-	mov	al, 0x20
-	out	dx, al
-	
-	cpu 8086
+	mov     dx, 0x3da
+	in      al, dx
+	mov     dx, 0x3c0
+	mov     al, 0x20
+	out     dx, al
+
+	cpu     8086
 
 ;;;; load VGA BIOS ;;;;
 
@@ -118,10 +118,6 @@ int9:
 	in      al, 0x60
 	mov     al, 0x20
 	out     0x20, al
-	iret
-
-;;;; BIOS VIDEO INTERRUPT SERVICE ;;;;
-
 int10:
 	iret
 
