@@ -27,12 +27,12 @@ blints:
 	mov     ax, cs
 	stosw
 	loop	blints
-	mov     word [es:0x08*4], INT8     ; TIMER HANDLER
-	mov     word [es:0x09*4], INT9     ; KEYBOARD HANDLER
-	mov     word [es:0x12*4], INT12    ; MEMORY SERVICE
-	mov     word [es:0x13*4], INT13    ; DISK SERVICE
-	mov     word [es:0x16*4], INT16    ; KEYBOARD SERVICE
-	mov     word [es:0x1A*4], INT1A    ; TIME SERVICE
+	mov     word [es:0x08*4], INT08 ; TIMER HANDLER
+	mov     word [es:0x09*4], INT09 ; KEYBOARD HANDLER
+	mov     word [es:0x12*4], INT12 ; MEMORY SERVICE
+	mov     word [es:0x13*4], INT13 ; DISK SERVICE
+	mov     word [es:0x16*4], INT16 ; KEYBOARD SERVICE
+	mov     word [es:0x1A*4], INT1A ; TIME SERVICE
 
 ;;;; BIOS DATA AREA ;;;;
 
@@ -47,7 +47,7 @@ blints:
 	mov		ss, sp
 	mov		sp, 0x0100
 	
-;;;; 8259 PROGRAMMABLE INTERRUPT CONTROLLER ;;;;
+;;;; INITIALIZE 8259 PROGRAMMABLE INTERRUPT CONTROLLER ;;;;
 
 	mov		al, 16
 	out		0x20, al
@@ -58,7 +58,7 @@ blints:
 	xor		al, al
 	out		0x21, al
 	
-;;;; 8253 TIMER ;;;;
+;;;; INITIALIZE 8253 TIMER ;;;;
 
 	mov		al, 0x36
 	out		0x43, al
@@ -66,7 +66,7 @@ blints:
 	out		0x40, al
 	out		0x40, al
 	
-;;;; 8042 KEYBOARD CONTROLLER ;;;;
+;;;; INITIALIZE 8042 KEYBOARD CONTROLLER ;;;;
 
 	mov     al, 0xF0
 	out     0x60, al
@@ -138,7 +138,7 @@ oldint:
 
 ;;;; TIMER INTERRUPT HANDLER ;;;;
 
-INT8:
+INT08:
 	push	ds
 	push	ax
 	mov		ax, 0x40
@@ -174,7 +174,7 @@ INT1A:
 
 ;;;; KEYBOARD INTERRUPT HANDLER ;;;;
 
-INT9:
+INT09:
 	push	ax
 	push	bx
 	push	es
@@ -309,9 +309,9 @@ KBD_rea:
 	mov		ax, [ds:bx]
 	add		bx, 2
 	cmp		bx, 0x3E
-	jb		not_yet_16
+	jb		KBD_not_yet
 	sub		bx, 32
-not_yet_16:
+KBD_not_yet:
 	mov		[ds:0x1A], bx
 	jmp		KBD_exit
 KBD_wait:
@@ -575,8 +575,6 @@ write_disk:
 	mov		dl, dh
 	and		dx, 0x0F                   ; head is now in dx
 
-	; LBA = (cylinder * TOTAL_HEADS + head) * SECTORS_PER_CYL + sector - 1
-	
 	mov		ax, cx                     ; ax = cylinder
 	shl     ax, 4                      ; ax = ax * 16
 	add     ax, dx                     ; ax = ax + head
@@ -639,8 +637,7 @@ w_word_loop:
 	pop		ax
 	pop		ds
 	iret
-disk_type:
-    ; 1024 cylinders, 16 heads, 63 sectors per cylinder
+disk_type: ; 1024 cylinders, 16 heads, 63 sectors per cylinder
 	mov     cx, 0xFF3F
 	mov     dx, 0x0F01
 blank:
