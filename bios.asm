@@ -1,12 +1,13 @@
 ; System BIOS at F000:0000 - F000:FFFF
 ;
-; What works
+; What works (PCem)
 ;  MS-DOS 6.22
 ;  Supaplex
 ;  Prince of persia
 ;  Keen 4
 ;  Eye of the Beholder 2
 ;  Space Quest 3
+;  Wolfenstein 3D
 
 %define ATA 0x1F0
 
@@ -97,36 +98,34 @@ blints:
 ;;;; VIDEO INTERRUPT HANDLER ;;;;
 
 INT10:
-	cmp		ah, 0      ; mode
+	cmp		ah, 0x00   ; mode
 	je		oldint
-	cmp		ah, 2      ; set cursor position
+	cmp		ah, 0x02   ; set cursor position
 	je		oldint
-	cmp		ah, 3      ; get cursor position
+	cmp		ah, 0x03   ; get cursor position
 	je		oldint	
-	cmp		ah, 6      ; scroll up
+	cmp		ah, 0x06   ; scroll up
 	je		oldint
-	cmp		ah, 8      ; read attribute/character
+	cmp		ah, 0x08   ; read attribute/character
 	je		oldint
-	cmp		ah, 9      ; write attribute/character
+	cmp		ah, 0x09   ; write attribute/character
 	je		oldint	
 	cmp		ah, 0x0E   ; teletype
 	je		oldint
-	cmp		ah, 0x0F   ; current video state
-	je		oldint
+	cmp		ah, 0x0F
+	je		AH0F
 	cmp		ah, 0x12
 	je		AH12
-	cmp		ah, 0x15
-	je		AH15
 	cmp		ah, 0x1A
 	je		AH1A
 	iret
-AH12:
-	mov		bx, 3       ; fucks up MS-DOS edit (is needed for keen 4)
+AH0F:
+	mov		ah, 80
+	mov		al, 3
+	mov		bh, 0
 	iret
-AH15:
-	mov		ah, byte 80 ; columns
-	mov		al, byte 3  ; mode
-	mov     bh, 0       ; page
+AH12:
+	mov		bx, 3      ; partially fucks up MS-DOS edit (is needed for keen 4)
 	iret
 AH1A:
 	mov		al, 0x1A
@@ -147,7 +146,7 @@ INT8:
 	clc
 	adc		word [ds:0x6C], 1
 	adc		word [ds:0x6E], 0
-	int		0x1C ; normally just iret
+	int		0x1C
 	mov		al, 0x20
 	out		0x20, al
 	pop		ax
