@@ -224,8 +224,6 @@ load_charset:
 	outw	0x3ce, 0x0406
 	outw	0x3c4, 0x0402
 	outw	0x3c4, 0x0604
-	mov		si, cs
-	mov		ds, si
 	mov		si, FONT_VGA
 	mov		di, 0xa000
 	mov		es, di
