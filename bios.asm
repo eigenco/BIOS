@@ -1,91 +1,25 @@
 ; System BIOS at F000:0000 - F000:FFFF
 ; VGA BIOS not needed at C000:0000 - C000:7FFF
 ;
-; What works (PCem, 386, VGA)
-;  MS-DOS 6.22 (including edit)
-;  Supaplex
-;  Prince of persia
-;  Keen 4
-;  Eye of the Beholder 2
-;  Space Quest 3
-;  Wolfenstein 3D
+; What works (Tested: PCem, 386, VGA)
+;   MS-DOS 6.22 (including edit)
+;   Supaplex
+;   Prince of persia
+;   Keen 4
+;   Eye of the Beholder 2
+;   Space Quest 3
+;   Wolfenstein 3D
+
+%macro outb 2
+	mov		dx, %1
+	mov		al, %2
+	out		dx, al
+%endmacro
 
 %macro outw 2
 	mov		dx, %1
 	mov		ax, %2
 	out		dx, ax
-%endmacro
-
-%macro load_charset 0	
-	outw	0x3ce, 0x0005
-	outw	0x3ce, 0x0406
-	outw	0x3c4, 0x0402
-	outw	0x3c4, 0x0604
-	mov		si, cs
-	mov		ds, si
-	mov		si, FONT_VGA
-	mov		di, 0xa000
-	mov		es, di
-	mov		di, 0
-	mov		cx, 256*16
-	rep		movsw
-	outw	0x3c4, 0x0302
-	outw	0x3c4, 0x0204
-	outw	0x3ce, 0x1005
-	outw	0x3ce, 0x0e06
-%endmacro
-
-%macro load_palette 0
-	mov		bx, cs
-	mov		ds, bx
-	mov		cx, 64
-	mov     bl, 0
-%%palette:
-	mov		dx, 0x3c8
-	mov		al, bl
-	out		dx, al
-	inc		bl
-	inc		dx
-	lodsb
-	out		dx, al
-	lodsb
-	out		dx, al
-	lodsb
-	out		dx, al
-	loop	%%palette
-%endmacro
-
-%macro load_VGA_regs 0
-	mov		bx, cs
-	mov		ds, bx
-
-	mov		dx, 0x3c2
-	outsb
-
-	mov		dx, 0x3c0
-	mov		cx, 42
-	rep		outsb
-
-	mov		dx, 0x3c4
-	mov		cx, 5
-	rep		outsw
-
-	mov		dx, 0x3ce
-	mov		cx, 9
-	rep		outsw
-
-	mov		dx, 0x3d4
-	mov		ax, 0x0011 ; write protect off
-	out		dx, ax
-	mov		cx, 25
-	rep		outsw
-
-	mov		dx, 0x3c0
-	mov		al, 0x20
-	out		dx, al
-	
-	mov		dx, 0x3da
-	in		al, dx
 %endmacro
 
 %define ATA 0x1F0
@@ -108,6 +42,7 @@ blints:
 	loop	blints
 	mov     word [es:0x08*4], INT08 ; TIMER HANDLER
 	mov     word [es:0x09*4], INT09 ; KEYBOARD HANDLER
+	mov     word [es:0x10*4], INT10 ; VIDEO SERVICE
 	mov     word [es:0x12*4], INT12 ; MEMORY SERVICE
 	mov     word [es:0x13*4], INT13 ; DISK SERVICE
 	mov     word [es:0x16*4], INT16 ; KEYBOARD SERVICE
@@ -152,12 +87,17 @@ blints:
 	mov     al, 1
 	out     0x60, al
 	
-;;;; LOAD ROM EXTENSIONS ;;;;
+;;;; BIOS DATA AREA ;;;;
 
-	mov     di, 0
-	mov     es, di
-	mov		word [es:0x10*4+2], cs
-	mov     word [es:0x10*4+0], INT10 ; VIDEO SERVICE
+	mov		di, 0x40
+	mov		es, di
+	mov		byte [es:0x49], 3  ; video mode
+	mov		word [es:0x4A], 80 ; columns
+	mov		word [es:0x50], 0  ; cursor position
+	mov		byte [es:0x62], 0  ; page
+	mov		byte [es:0x84], 24 ; rows - 1
+
+;;;; INITIALIZE VIDEO TEXT MODE ;;;;
 
 	mov		ax, 3
 	int		0x10
@@ -179,25 +119,27 @@ blints:
 
 INT10:
 	cmp		ah, 0x00
-	je		AH00
+	je		INT10_SET_VIDEO_MODE
 	cmp		ah, 0x02
-	je		AH02
+	je		INT10_SET_CURSOR_POSITION
 	cmp		ah, 0x06
-	je		AH06
+	je		INT10_SCROLL_UP
+	cmp		ah, 0x08
+	je		INT10_READ_AT_CURSOR
 	cmp		ah, 0x09
-	je		AH09
+	je		INT10_WRITE_AT_CURSOR
 	cmp		ah, 0x0E
-	je		AH0E
+	je		INT10_WRITE_CHARACTER
 	cmp		ah, 0x0F
-	je		AH0F
+	je		INT10_GET_VIDEO_STATE
 	cmp		ah, 0x12
-	je		AH12
+	je		INT10_GET_VIDEO_CONFIGURATION1
 	cmp		ah, 0x1A
-	je		AH1A
+	je		INT10_GET_VIDEO_CONFIGURATION2
 	cmp		ah, 0x1B
-	je		AH1B
+	je		INT10_GET_VIDEO_CONFIGURATION3
 	iret
-AH00:
+INT10_SET_VIDEO_MODE:
 	push	ds
 	push	si
 	push	ax
@@ -207,22 +149,22 @@ AH00:
 	cmp		al, 0x0D
 	jne		AH00_AL13
 	mov		si, VGA_REGS_0D
-	load_VGA_regs
+	call	load_VGA_regs
 	mov		si, PALETTE_CGA
-	load_palette
+	call	load_palette
 	jmp		AH00_END
 AH00_AL13:
 	cmp		al, 0x13
 	jne		AH00_AL03
 	mov		si, VGA_REGS_13
-	load_VGA_regs
+	call	load_VGA_regs
 	jmp		AH00_END
 AH00_AL03:
 	mov		si, VGA_REGS_03
-	load_VGA_regs
-	load_charset
+	call	load_VGA_regs
+	call	load_charset
 	mov		si, PALETTE_EGA
-	load_palette
+	call	load_palette
 AH00_END:	
 	pop		dx
 	pop		cx
@@ -231,16 +173,89 @@ AH00_END:
 	pop		si
 	pop		ds
 	iret
-AH02:	
+load_VGA_regs:
+	mov		bx, cs
+	mov		ds, bx
+
+	mov		dx, 0x3c2
+	outsb
+
+	mov		dx, 0x3c0
+	mov		cx, 42
+	rep		outsb
+
+	mov		dx, 0x3c4
+	mov		cx, 5
+	rep		outsw
+
+	mov		dx, 0x3ce
+	mov		cx, 9
+	rep		outsw
+
+	mov		dx, 0x3d4
+	mov		ax, 0x0011 ; write protect off
+	out		dx, ax
+	mov		cx, 25
+	rep		outsw
+
+	mov		dx, 0x3c0
+	mov		al, 0x20
+	out		dx, al
+	
+	mov		dx, 0x3da
+	in		al, dx
+	ret
+load_palette:
+	mov		cx, 64
+	mov     bl, 0
+palette:
+	mov		dx, 0x3c8
+	mov		al, bl
+	out		dx, al
+	inc		bl
+	inc		dx
+	outsb
+	outsb
+	outsb
+	loop	palette
+	ret
+load_charset:
+	outw	0x3ce, 0x0005
+	outw	0x3ce, 0x0406
+	outw	0x3c4, 0x0402
+	outw	0x3c4, 0x0604
+	mov		si, cs
+	mov		ds, si
+	mov		si, FONT_VGA
+	mov		di, 0xa000
+	mov		es, di
+	mov		di, 0
+	mov		cx, 256*16
+	rep		movsw
+	outw	0x3c4, 0x0302
+	outw	0x3c4, 0x0204
+	outw	0x3ce, 0x1005
+	outw	0x3ce, 0x0e06
+	ret
+INT10_SET_CURSOR_POSITION:
 	push	ds
 	push	ax
 	push	bx
 	push	cx
 	push	dx
-	mov		cx, dx
+	
 	mov		ax, 0x40
 	mov		ds, ax
 	mov		[ds:0x50], dx ; update BDA
+	
+	mov		ah, 0
+	mov     al, dh
+	mov		bl, 80
+	mul		bl	
+	mov		dh, 0	
+	add		ax, dx
+	mov		cx, ax
+	
 	mov		al, 0x0F
 	mov		dx, 0x3D4
 	out		dx, al
@@ -259,16 +274,7 @@ AH02:
 	pop		ax
 	pop		ds
 	iret
-AH03:
-	push	ds
-	push	ax
-	mov		ax, 0x40
-	mov		ds, ax
-	mov		dx, [ds:0x50]
-	pop		ax
-	pop		ds
-	iret
-AH06:
+INT10_SCROLL_UP:
 	push	es
 	push	di
 	push	ax
@@ -294,28 +300,40 @@ skipAH06:
 	pop		di
 	pop		es
 	iret
-AH09:
+INT10_READ_AT_CURSOR:
+	mov		ah, 7
+	iret
+INT10_WRITE_AT_CURSOR:
 	push	es
 	push	di
 	push	ax
 	push	bx
 	push	cx
 	push	dx
+	
+	push	cx
 
-	; TODO
-	mov		bh, 0
-	pushf
-	call	0xC000:0x0058
+	mov		di, 0x40
+	mov		es, di
+	mov		dx, [es:0x50] ; load old cursor location
 
-	;mov		di, 0x40
-	;mov		es, di
-	;mov		di, [es:0x50] ; load old cursor location
-	;shl		di, 1	
+	mov		bh, bl
+	mov		bl, al
+	mov		al, dh
+	mov		ah, 0
+	mov		cl, 160
+	mul		cl
+	mov		dh, 0
+	shl		dl, 1
+	add		ax, dx
+	mov		di, ax
+	mov		al, bl
 
-	;mov		dx, 0xB800
-	;mov		es, dx
-	;mov		ah, bl
-	;rep		stosw ; write characters to video memory
+	pop		cx
+	mov		dx, 0xB800
+	mov		es, dx
+	mov		ah, bh
+	rep		stosw
 
 	pop		dx
 	pop		cx
@@ -325,7 +343,7 @@ AH09:
 	pop		es
 
 	iret
-AH0E:
+INT10_WRITE_CHARACTER:
 	push	ds
 	push	si
 	push	es
@@ -335,11 +353,21 @@ AH0E:
 	push	cx
 	push	dx
 	
-	mov		bx, 0x40
-	mov		es, bx
-	mov		di, [es:0x50] ; load old cursor location
-	shl		di, 1
-	
+	mov		di, 0x40
+	mov		es, di
+	mov		dx, [es:0x50] ; load old cursor location
+
+	mov		bl, al
+	mov		al, dh
+	mov		ah, 0         ; ax = row
+	mov		cl, 160
+	mul		cl            ; ax = 160*ax
+	mov		dh, 0
+	shl		dl, 1
+	add		ax, dx        ; ax = ax + 2*column
+	mov		di, ax	      ; di = 160*row + 2*column
+	mov		al, bl
+
 	cmp		al, 8 ; BACKSPACE
 	jne		notBS
 	sub		di, 2
@@ -388,11 +416,15 @@ nonCHAR:
 	mov		bx, 0x40
 	mov		es, bx
 	mov		bx, 0x50
-	shr		di, 1
-	mov		[es:bx], di ; store new cursor location
 	
-	mov		ah, 2
-	mov		dx, di
+	mov		ax, di ; calculate the new cursor dx
+	mov		cx, 160
+	div		cl
+	shr		ah, 1
+	xchg	al, ah
+	
+	mov		dx, ax
+	mov		ah, 2	
 	int		0x10 ; update cursor location
 
 	pop		dx
@@ -404,19 +436,19 @@ nonCHAR:
 	pop		si
 	pop		ds
 	iret
-AH0F:
+INT10_GET_VIDEO_STATE:
 	mov		ah, 80
 	mov		al, 3
 	mov		bh, 0
 	iret
-AH12:
+INT10_GET_VIDEO_CONFIGURATION1:
 	mov		bx, 3
 	iret
-AH1A:
+INT10_GET_VIDEO_CONFIGURATION2:
 	mov		al, 0x1A
 	mov		bx, 8
 	iret
-AH1B:
+INT10_GET_VIDEO_CONFIGURATION3:
 	mov		al, 0x1B
 	mov		bx, cs
 	mov		es, bx
@@ -635,7 +667,7 @@ ASCII:
 	db       12 ; 0C
 	db      '=' ; 0D
 	db     0x08 ; 0E <BACKSPACE>
-	db       15 ; 0F
+	db     0x09 ; 0F <TAB>
 	db      'q' ; 10
 	db      'w' ; 11
 	db      'e' ; 12
