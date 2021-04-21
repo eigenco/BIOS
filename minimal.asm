@@ -1,4 +1,7 @@
 ; System BIOS at F000:0000 - F000:FFFF
+; - Initializes: KBD, PIC, PIT, IVT
+; - Services: KBD, Time, Conventional MEM
+; - Load: VGA BIOS, IDE BIOS
 
 	cpu     8086
 
