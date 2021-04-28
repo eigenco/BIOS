@@ -1,4 +1,4 @@
-; System BIOSat F000:0000 - F000:FFFF
+; System BIOS at F000:0000 - F000:FFFF
 
 %define ATA0 0x1f0
 %define ATA1 0x1f1
@@ -507,6 +507,19 @@ INT10_putchar_continue_normally:
 INT10_putchar_not_LF:
 	cmp		al, 32
 	jb		INT10_putchar_not_CHAR
+	cmp		di, 2*80*25
+	jne		INT10_skip_scroll
+	mov		dx, di
+	mov		bx, 0xb800
+	mov		ds, bx
+	mov		es, bx
+	mov		si, 160
+	xor		di, di
+	mov		cx, 80*25
+	rep		movsw
+	mov		di, dx
+	sub		di, 160
+INT10_skip_scroll:
 	mov		bx, 0xb800
 	mov		es, bx
 	mov		ah, 7
