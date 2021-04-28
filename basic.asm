@@ -72,12 +72,6 @@ blankints:
 	mov		al, 0x61
 	out		0x60, al
 	
-;;;; BIOS DATA AREA ;;;;
-
-	mov		di, 0x40
-	mov		es, di
-	mov		word [es:0x50], 0  ; cursor position
-
 ;;;; INITIALIZE VIDEO TEXT MODE ;;;;
 
 	mov		ax, 3
@@ -369,6 +363,9 @@ INT10_ah00_al03:
 	call	INT10_load_charset
 	mov		si, PALETTE_EGA
 	call	INT10_load_palette
+	mov		di, 0x40
+	mov		es, di
+	mov		word [es:0x50], 0
 	mov		di, 0xb800
 	mov		es, di
 	mov		di, 0
