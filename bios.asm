@@ -96,36 +96,31 @@ INT09:
 	mov		di, 0x40
 	mov		es, di		
 	mov		di, [es:0x1c]
+
 	cmp		al, 0x1d                   ; <CTRL> down
 	jne		INT09_not_1D
 	or      [es:0x17], byte 00000100b	
 	jmp		INT09_nobuff
 INT09_not_1D:
+
 	cmp		al, 0x9d                   ; <CTRL> up
 	jne		INT09_not_9D
 	and     [es:0x17], byte 11111011b	
 	jmp		INT09_nobuff
 INT09_not_9D:
+
 	cmp		al, 0x2a                   ; <LSHIFT> down
 	jne		INT09_not_2A
 	or      [es:0x17], byte 00000010b
 	jmp		INT09_nobuff
 INT09_not_2A:
+
 	cmp		al, 0xaa                   ; <LSHIFT> up
 	jne		INT09_not_AA
 	and     [es:0x17], byte 11111101b
 	jmp		INT09_nobuff
 INT09_not_AA:
-	cmp		al, 0x36                   ; <RSHIFT> down
-	jne		INT09_not_36
-	or      [es:0x17], byte 00000001b	
-	jmp		INT09_nobuff
-INT09_not_36:
-	cmp		al, 0xb6                   ; <RSHIFT> up
-	jne		INT09_not_B6
-	and     [es:0x17], byte 11111110b	
-	jmp		INT09_nobuff
-INT09_not_B6:
+
 	cmp		al, 0x7f
 	ja		INT09_nobuff
 	mov		bx, cs
@@ -138,18 +133,21 @@ INT09_not_B6:
 	jz		INT09_not_SHIFT
 	sub		al, 0x20
 INT09_not_SHIFT:
+
 	mov		bl, [es:0x17]
 	test	bl, 4
 	jz		INT09_not_CTRL
 	sub		al, 0x60
 INT09_not_CTRL:
+
 	mov		word [es:di], ax
 	add		di, 2
 	cmp		di, 0x3e
-	jb		INT09_not_yet_9
+	jb		INT09_not_yet_buffer_roll
 	sub		di, 32
-INT09_not_yet_9:
+INT09_not_yet_buffer_roll:
 	mov		[es:0x1c], di
+
 INT09_nobuff:
 	mov		al, 0x20
 	out		0x20, al
